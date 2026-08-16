@@ -1,0 +1,100 @@
+[
+  {
+    "id": 1,
+    "slug": "catalhoyuk",
+    "name": "Çatalhöyük",
+    "region": {
+      "en": "Konya Province", "tr": "Konya İli", "fr": "Province de Konya", "it": "Provincia di Konya",
+      "de": "Provinz Konya", "es": "Provincia de Konya", "ru": "Провинция Конья", "zh": "科尼亚省"
+    },
+    "era": "neolithic",
+    "period": {
+      "name": {
+        "en": "Neolithic to Chalcolithic Settlement", "tr": "Neolitik'ten Kalkolitik'e Yerleşim",
+        "fr": "Établissement néolithique à chalcolithique", "it": "Insediamento dal Neolitico al Calcolitico",
+        "de": "Neolithische bis chalkolithische Siedlung", "es": "Asentamiento neolítico a calcolítico",
+        "ru": "Поселение от неолита до халколита", "zh": "新石器至红铜时代聚落"
+      },
+      "dates": {
+        "en": "c. 7400–5200 BCE", "tr": "MÖ yakl. 7400–5200",
+        "fr": "env. 7400–5200 av. J.-C.", "it": "circa 7400–5200 a.C.",
+        "de": "ca. 7400–5200 v. Chr.", "es": "aprox. 7400–5200 a. C.",
+        "ru": "ок. 7400–5200 гг. до н.э.", "zh": "约公元前7400—5200年"
+      }
+    },
+    "lat": 37.6667,
+    "lng": 32.8281,
+    "description": {
+      "en": "Two mounds rise from the flat Konya plain — the taller eastern one holds eighteen Neolithic building levels from 7400–6200 BCE, the western one shows the shift into the Chalcolithic. Houses here had no doors or streets; people climbed in and out through the roof, and burials were made beneath the floors. Inscribed as a UNESCO World Heritage Site in 2012, it's remote and low-key — pair the visit with the on-site museum to make sense of the excavation trenches.",
+      "tr": "Konya Ovası'nın düz arazisinden yükselen iki höyükten daha yüksek olan doğu höyüğü, MÖ 7400-6200 yılları arasına tarihlenen on sekiz Neolitik yapı katmanı barındırır; batı höyük ise Kalkolitik döneme geçişi gösterir. Buradaki evlerin kapısı ve sokakları yoktu; insanlar çatıdan girip çıkar, ölüler ev tabanlarının altına gömülürdü. 2012'de UNESCO Dünya Mirası Listesi'ne alınan alan hem uzak hem sade bir yer — kazı alanlarını anlamlandırmak için ziyaretinizi alandaki müzeyle birleştirin.",
+      "fr": "Deux tertres s'élèvent au-dessus de la plaine de Konya — le plus haut, à l'est, renferme dix-huit niveaux d'occupation néolithique datés de 7400 à 6200 av. J.-C., tandis que celui de l'ouest témoigne du passage au Chalcolithique. Les maisons n'avaient ni portes ni rues : on y entrait par le toit, et les morts étaient enterrés sous le sol des habitations. Inscrit au patrimoine mondial de l'UNESCO en 2012, le site est isolé et discret — associez la visite au musée sur place pour donner du sens aux tranchées de fouille.",
+      "it": "Due tumuli si ergono sulla piatta pianura di Konya: quello orientale, più alto, custodisce diciotto livelli di occupazione neolitica datati tra il 7400 e il 6200 a.C., mentre quello occidentale testimonia il passaggio al Calcolitico. Le case non avevano porte né strade: si entrava dal tetto, e i defunti venivano sepolti sotto il pavimento delle abitazioni. Iscritto nella Lista del Patrimonio Mondiale UNESCO nel 2012, il sito è remoto e sobrio — abbina la visita al museo in loco per capire le trincee di scavo.",
+      "de": "Zwei Hügel erheben sich aus der flachen Konya-Ebene — der höhere östliche birgt achtzehn neolithische Siedlungsschichten aus der Zeit von 7400 bis 6200 v. Chr., der westliche zeigt den Übergang zum Chalkolithikum. Die Häuser hatten weder Türen noch Straßen; man stieg durchs Dach ein und aus, Bestattungen erfolgten unter den Hausböden. Seit 2012 UNESCO-Welterbe, ist der Ort abgelegen und unauffällig — verbinden Sie den Besuch mit dem Museum vor Ort, um die Grabungsgräben einzuordnen.",
+      "es": "Dos montículos se alzan sobre la llanura de Konya: el oriental, más alto, alberga dieciocho niveles de ocupación neolítica de entre 7400 y 6200 a. C., mientras que el occidental muestra la transición al Calcolítico. Las casas no tenían puertas ni calles; se entraba y salía por el techo, y los enterramientos se hacían bajo el suelo de las viviendas. Inscrito como Patrimonio Mundial de la UNESCO en 2012, es un lugar remoto y discreto — combina la visita con el museo del sitio para entender las trincheras de excavación.",
+      "ru": "Два холма возвышаются над плоской равниной Конья — более высокий восточный хранит восемнадцать неолитических слоёв застройки, датируемых 7400–6200 гг. до н.э., а западный отражает переход к халколиту. В домах не было ни дверей, ни улиц: внутрь попадали через крышу, а захоронения устраивали под полом жилищ. Включённый в список Всемирного наследия ЮНЕСКО в 2012 году, объект удалён и малолюден — совместите посещение с музеем на месте, чтобы разобраться в раскопах.",
+      "zh": "两座土丘从科尼亚平原上隆起——较高的东丘保存了公元前7400至6200年间的十八层新石器时代建筑遗迹，西丘则展示了向红铜时代的过渡。这里的房屋没有门也没有街道，人们通过屋顶出入，逝者则葬于房屋地面之下。该遗址于2012年被列入联合国教科文组织世界遗产名录，地处偏远、朴实无华——建议将参观与现场博物馆结合，才能理解这些发掘探沟。"
+    },
+    "website": "https://en.wikipedia.org/wiki/%C3%87atalh%C3%B6y%C3%BCk",
+    "demoMedia": {
+      "images": [
+        "https://picsum.photos/seed/catalhoyuk-mound/700/500",
+        "https://picsum.photos/seed/catalhoyuk-houses/700/500",
+        "https://picsum.photos/seed/catalhoyuk-museum/700/500"
+      ],
+      "video": "https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4"
+    }
+  },
+  {
+    "id": 2,
+    "slug": "aktopraklik-mound",
+    "name": "Aktopraklık Mound",
+    "region": {
+      "en": "Bursa Province", "tr": "Bursa İli", "fr": "Province de Bursa", "it": "Provincia di Bursa",
+      "de": "Provinz Bursa", "es": "Provincia de Bursa", "ru": "Провинция Бурса", "zh": "布尔萨省"
+    },
+    "era": "neolithic",
+    "period": {
+      "name": {
+        "en": "Late Neolithic – Middle Chalcolithic",
+        "tr": "Geç Neolitik – Orta Kalkolitik",
+        "fr": "Néolithique tardif – Chalcolithique moyen",
+        "it": "Neolitico tardo – Calcolitico medio",
+        "de": "Spätneolithikum – Mittelchalkolithikum",
+        "es": "Neolítico tardío – Calcolítico medio",
+        "ru": "Поздний неолит — средний халколит",
+        "zh": "新石器时代晚期至红铜时代中期"
+      },
+      "dates": {
+        "en": "c. 6350–5500 BCE",
+        "tr": "MÖ yakl. 6350–5500",
+        "fr": "env. 6350–5500 av. J.-C.",
+        "it": "circa 6350–5500 a.C.",
+        "de": "ca. 6350–5500 v. Chr.",
+        "es": "aprox. 6350–5500 a. C.",
+        "ru": "ок. 6350–5500 гг. до н.э.",
+        "zh": "约公元前6350—5500年"
+      }
+    },
+    "lat": 40.174717,
+    "lng": 28.773883,
+    "description": {
+      "en": "Three shifting settlement mounds — A, B, and C — sit on the eastern shore of Lake Uluabat, tracing one of the earliest farming communities in northwest Anatolia. Round wattle-and-daub houses, in-house burials, and Fikirtepe-culture pottery came out of these digs; many of the finds, plus a scale model of the mound, are now in the Bursa Archaeology Museum. It's a quiet, unassuming field compared to Ephesus or Troy — pair it with the museum visit to make sense of what you're standing on.",
+      "tr": "Ulubat Gölü'nün doğu kıyısında yer alan A, B ve C olarak adlandırılan üç höyük, Kuzeybatı Anadolu'nun en eski tarım topluluklarından birinin izlerini taşır. Kazılarda yuvarlak planlı dal örgü evler, ev tabanlarına yapılan gömüler ve Fikirtepe kültürüne ait çanak çömlek ortaya çıkarılmıştır; buluntuların çoğu ve höyüğün bir maketi Bursa Arkeoloji Müzesi'nde sergilenmektedir. Efes ya da Truva'ya kıyasla sessiz, gösterişsiz bir alan — üzerinde durduğunuz yeri anlamlandırmak için müze ziyaretini de programa ekleyin.",
+      "fr": "Trois tertres de peuplement successifs — A, B et C — se trouvent sur la rive est du lac Uluabat, témoignant de l'une des plus anciennes communautés agricoles du nord-ouest de l'Anatolie. Les fouilles ont mis au jour des maisons rondes en clayonnage, des sépultures sous le sol des habitations et une poterie de la culture de Fikirtepe ; la plupart des trouvailles, ainsi qu'une maquette du tertre, sont exposées au musée archéologique de Bursa. Un site discret comparé à Éphèse ou Troie — associez-le à la visite du musée pour donner du sens à ce que vous voyez.",
+      "it": "Tre tumuli insediativi successivi — A, B e C — sorgono sulla riva orientale del lago Uluabat, testimoniando una delle prime comunità agricole dell'Anatolia nordoccidentale. Gli scavi hanno portato alla luce case rotonde in graticcio e fango, sepolture sotto il pavimento delle abitazioni e ceramiche della cultura di Fikirtepe; molti reperti, insieme a un modello del tumulo, si trovano ora nel Museo Archeologico di Bursa. Un sito discreto rispetto a Efeso o Troia — abbina la visita al museo per capire cosa stai osservando.",
+      "de": "Drei aufeinanderfolgende Siedlungshügel — A, B und C — liegen am Ostufer des Uluabat-Sees und zeugen von einer der frühesten Ackerbaugemeinschaften Nordwestanatoliens. Die Grabungen brachten runde Flechtwerkhäuser, Bestattungen unter Hausböden und Keramik der Fikirtepe-Kultur zutage; viele Funde sowie ein Modell des Hügels sind heute im Archäologischen Museum Bursa zu sehen. Ein unscheinbarer Ort im Vergleich zu Ephesos oder Troja — kombinieren Sie den Besuch mit dem Museum, um einzuordnen, worauf Sie stehen.",
+      "es": "Tres montículos de asentamiento sucesivos — A, B y C — se encuentran en la orilla oriental del lago Uluabat y documentan una de las comunidades agrícolas más antiguas del noroeste de Anatolia. Las excavaciones sacaron a la luz casas circulares de entramado y barro, enterramientos bajo el suelo de las viviendas y cerámica de la cultura de Fikirtepe; muchos de los hallazgos, junto con una maqueta del montículo, se exhiben ahora en el Museo Arqueológico de Bursa. Un yacimiento discreto comparado con Éfeso o Troya — combina la visita con el museo para entender qué estás pisando.",
+      "ru": "Три сменявших друг друга поселенческих холма — A, B и C — расположены на восточном берегу озера Улубат и свидетельствуют об одной из древнейших земледельческих общин северо-западной Анатолии. Раскопки открыли круглые плетёные дома, захоронения под полом жилищ и керамику культуры Фикиртепе; многие находки, а также макет холма, теперь хранятся в Археологическом музее Бурсы. Скромное место по сравнению с Эфесом или Троей — совместите посещение с музеем, чтобы понять, на чём вы стоите.",
+      "zh": "三座先后延续的聚落土丘——A、B、C区——坐落在乌卢阿巴特湖东岸，记录了西北安纳托利亚最早的农业聚落之一。发掘出土了圆形编枝抹泥房屋、屋内地面下的墓葬，以及菲基尔特佩文化的陶器；许多出土文物连同土丘模型现藏于布尔萨考古博物馆。与以弗所或特洛伊相比，这里显得低调朴素——建议将博物馆参观也纳入行程，才能读懂脚下的这片遗址。"
+    },
+    "website": "https://tr.wikipedia.org/wiki/Aktoprakl%C4%B1k_H%C3%B6y%C3%BC%C4%9F%C3%BC",
+    "demoMedia": {
+      "images": [
+        "https://picsum.photos/seed/aktoprak-mound/700/500",
+        "https://picsum.photos/seed/aktoprak-dig/700/500",
+        "https://picsum.photos/seed/aktoprak-lake/700/500"
+      ],
+      "video": null
+    }
+  }
+]
