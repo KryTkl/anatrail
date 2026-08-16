@@ -1,0 +1,847 @@
+<!DOCTYPE html>
+<!--
+  AnaTrail — sustainable web design notes
+  ======================================
+  This file applies the Green Software Foundation's eight core principles
+  of sustainable web design. What's handled in code vs. what's a hosting
+  decision is noted below.
+
+  1. Carbon Efficiency      Every feature does the least work for the value
+                             it delivers: no build step, no framework runtime,
+                             one static file, minimal DOM writes.
+  2. Energy Efficiency      Google Fonts loads only the exact weights used
+                             (no unused italics/weights). Map tiles are capped
+                             to the Turkey+Cyprus bounds and a sane maxZoom, so
+                             the browser never decodes more imagery than shown.
+  3. Carbon Intensity /     Not addressable client-side. HOSTING NOTE: serve
+     Carbon Awareness       this file from a host on the Green Web Foundation's
+                             registry (e.g. providers on renewable grids) —
+                             check https://www.thegreenwebfoundation.org/green-web-check/
+  4. Embodied Carbon        No build tooling, no bundler, no heavy JS framework
+                             — the page runs comfortably on old/low-power
+                             devices, extending their useful life instead of
+                             pushing users toward hardware upgrades.
+  5. Energy Proportionality Everything is event-driven (clicks, hover, resize),
+                             nothing polls or runs on a timer. The resize
+                             handler is debounced so it does work once per
+                             pause, not on every pixel of a drag.
+  6. Networking              Gallery photos use loading="lazy" and are only
+                             requested when a card is opened, not upfront.
+                             Map tiles are fetched only for the visible
+                             viewport by Leaflet. Reduced-data mode (see
+                             below) skips pan animation and secondary photos
+                             on constrained connections.
+  7. Demand Shaping          The page reads navigator.connection (where the
+                             browser exposes it) and, on slow/data-saver
+                             connections, disables map pan animation and
+                             trims the photo gallery to a single image —
+                             shaping what's sent to match real conditions.
+  8. Measurement &          This comment block is the baseline; when the
+     Optimization            catalog grows, re-run Lighthouse / a carbon
+                             calculator (e.g. websitecarbon.com) against the
+                             published URL and adjust tile maxZoom, image
+                             sizes, and font weights accordingly.
+-->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>AnaTrail — A Field Map of Turkey's Ancient Sites</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@600;700&family=Inter:wght@400&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/MarkerCluster.css" />
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/MarkerCluster.Default.css" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/leaflet.markercluster.js"></script>
+
+<style>
+  :root{
+    --parchment: #EDE4D2;
+    --parchment-dim: #E2D5B9;
+    --ink: #2B241C;
+    --ink-soft: #5B4E3E;
+    --terracotta: #B5533C;
+    --olive: #7C8363;
+    --ochre: #C08A28;
+    --teal: #3E6259;
+    --rust: #8B4A2B;
+    --stone: #A69A87;
+    --hairline: rgba(43,36,28,0.16);
+    --font-display: 'Fraunces', serif;
+    --font-body: 'Inter', sans-serif;
+    --font-mono: 'IBM Plex Mono', monospace;
+    --card-w: 380px;
+  }
+
+  *{ box-sizing: border-box; }
+  html,body{ margin:0; padding:0; height:100%; font-family:var(--font-body); color:var(--ink); }
+
+  #map{
+    position:fixed; inset:0; z-index:0; background:var(--parchment);
+  }
+
+  /* warm, vintage-survey tone applied to the tile layer */
+  .leaflet-tile-pane{
+    filter: sepia(0.32) saturate(1.15) hue-rotate(-6deg) brightness(0.97) contrast(1.04);
+  }
+  .leaflet-container{ font-family: var(--font-body); }
+  .leaflet-control-zoom{ border:1px solid var(--hairline) !important; box-shadow:none !important; }
+  .leaflet-control-zoom a{
+    background:var(--parchment) !important; color:var(--ink) !important;
+    border-color:var(--hairline) !important;
+  }
+  .leaflet-control-attribution{
+    background:rgba(237,228,210,0.85) !important; color:var(--ink-soft) !important;
+    font-family:var(--font-mono); font-size:10px !important;
+  }
+
+  /* ---------- top bar ---------- */
+  .topbar{
+    position:fixed; top:0; left:0; right:0; z-index:10;
+    display:flex; align-items:flex-start; justify-content:space-between;
+    padding:22px 24px;
+    pointer-events:none;
+  }
+  .brand{
+    pointer-events:auto;
+    max-width:360px;
+    position:relative;
+    overflow:visible;
+  }
+  .scroll-rod{
+    height:16px;
+    margin:0 -14px;
+    border-radius:999px;
+    position:relative;
+    background: linear-gradient(180deg, #C97B4F 0%, #B5533C 55%, #8B4A2B 100%);
+    box-shadow: 0 3px 6px rgba(43,36,28,0.4);
+  }
+  .scroll-rod .knob{
+    position:absolute; top:50%; width:15px; height:15px; border-radius:50%;
+    transform:translateY(-50%);
+    background: radial-gradient(circle at 32% 28%, #D89468, #7A431F 78%);
+    box-shadow: 0 2px 4px rgba(43,36,28,0.45);
+  }
+  .scroll-rod .knob:first-child{ left:-8px; }
+  .scroll-rod .knob:last-child{ right:-8px; }
+
+  .scroll-content{
+    background: var(--parchment);
+    padding:16px 22px;
+    position:relative;
+    box-shadow:
+      inset 0 12px 16px -12px rgba(43,36,28,0.3),
+      inset 0 -12px 16px -12px rgba(43,36,28,0.3);
+  }
+  .brand h1{
+    font-family:var(--font-display); font-weight:700; font-size:29px;
+    letter-spacing:0.03em; margin:0 0 6px 0; position:relative;
+  }
+  .brand p{
+    margin:0 0 11px 0; font-size:14px; color:var(--ink-soft); line-height:1.55;
+    font-family:var(--font-mono); position:relative;
+  }
+  .brand p:last-child{ margin-bottom:0; }
+
+  /* ---------- eco score badge: pine sprig (SVG, drawn in JS), bottom-center ---------- */
+  .leaf-badge{
+    position:fixed; left:50%; bottom:90px; transform:translateX(-50%);
+    z-index:10; pointer-events:auto;
+    width:170px; height:170px;
+  }
+  .leaf-shape{
+    position:absolute; top:50%; left:50%;
+    z-index:1;
+    width:138px; height:auto;
+    transform:translate(-50%,-50%) rotate(-9deg);
+    filter: drop-shadow(0 6px 9px rgba(43,36,28,0.35));
+  }
+  .leaf-content{
+    position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
+    z-index:3; width:120px;
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px;
+    text-align:center; color:#F5EAD9;
+    pointer-events:none;
+  }
+  .leaf-title{
+    font-family:var(--font-display); font-weight:700; font-size:16px; letter-spacing:0.02em; text-align:center;
+    text-shadow: 0 1px 3px rgba(43,36,28,0.6);
+  }
+  .leaf-label{
+    font-family:var(--font-mono); font-size:10.5px; letter-spacing:0.02em; opacity:0.95; text-align:center;
+    text-shadow: 0 1px 3px rgba(43,36,28,0.6);
+  }
+  .leaf-status{
+    font-family:var(--font-mono); font-size:9px; letter-spacing:0.03em;
+    background:rgba(43,36,28,0.45); padding:2px 8px; border-radius:999px; margin-top:3px;
+  }
+
+  /* ---------- language switcher ---------- */
+  .lang-select{
+    pointer-events:auto;
+    display:block;
+    position:relative;
+    margin:2px 0 11px 0;
+    background:var(--parchment);
+    border:1px solid var(--hairline);
+    color:var(--ink);
+    font-family:var(--font-mono);
+    font-size:12.5px;
+    letter-spacing:0.04em;
+    padding:9px 10px;
+    cursor:pointer;
+    appearance:none;
+    -webkit-appearance:none;
+    background-image: linear-gradient(45deg, transparent 50%, var(--ink-soft) 50%), linear-gradient(135deg, var(--ink-soft) 50%, transparent 50%);
+    background-position: calc(100% - 14px) 55%, calc(100% - 9px) 55%;
+    background-size: 5px 5px, 5px 5px;
+    background-repeat: no-repeat;
+    padding-right:26px;
+    width:100%;
+  }
+  .lang-select:hover{ background-color:var(--parchment-dim); }
+
+  /* ---------- marker cluster badges ---------- */
+  .strata-cluster{ display:flex; align-items:center; justify-content:center; }
+  .strata-cluster div{
+    width:38px; height:38px; border-radius:50%;
+    background: var(--ink);
+    border: 2px solid var(--parchment);
+    color: var(--parchment);
+    display:flex; align-items:center; justify-content:center;
+    font-family:var(--font-mono); font-size:12px; font-weight:500;
+    box-shadow: 0 2px 5px rgba(43,36,28,0.35);
+  }
+
+  /* ---------- era filter chips ---------- */
+  .filters{
+    position:fixed; left:24px; bottom:24px; z-index:10;
+    display:flex; flex-wrap:wrap; gap:8px; max-width:calc(100% - 48px);
+    pointer-events:none;
+  }
+  .chip{
+    pointer-events:auto;
+    display:flex; align-items:center; gap:7px;
+    background:var(--parchment);
+    border:1px solid var(--hairline);
+    padding:8px 12px;
+    font-family:var(--font-mono); font-size:11.5px; letter-spacing:0.02em;
+    cursor:pointer; user-select:none;
+    color:var(--ink-soft);
+    transition: background 0.15s ease, color 0.15s ease, opacity 0.15s ease;
+  }
+  .chip .dot{ width:8px; height:8px; border-radius:50%; flex:none; }
+  .chip.off{ opacity:0.4; }
+  .chip:hover{ background:var(--parchment-dim); }
+
+  /* ---------- site card ---------- */
+  .site-card{
+    position:fixed; top:0; right:0; height:100%; width:var(--card-w);
+    max-width:100vw;
+    background:var(--parchment);
+    border-left:1px solid var(--hairline);
+    z-index:20;
+    transform:translateX(100%);
+    transition: transform 0.35s cubic-bezier(.19,1,.22,1);
+    display:flex; flex-direction:column;
+    box-shadow: -12px 0 30px rgba(43,36,28,0.12);
+  }
+  .site-card.open{ transform:translateX(0); }
+
+  .card-scroll{ overflow-y:auto; flex:1; }
+
+  .card-top{
+    padding:20px 22px 14px 22px;
+    border-bottom:1px solid var(--hairline);
+    position:relative;
+  }
+  .card-close{
+    position:absolute; top:16px; right:16px;
+    width:30px; height:30px;
+    border:1px solid var(--hairline);
+    background:transparent;
+    cursor:pointer;
+    font-family:var(--font-mono); font-size:14px; color:var(--ink-soft);
+    display:flex; align-items:center; justify-content:center;
+  }
+  .card-close:hover{ background:var(--parchment-dim); }
+
+  .catalog-no{
+    font-family:var(--font-mono); font-size:11px; letter-spacing:0.08em;
+    color:var(--stone); margin:0 0 10px 0;
+  }
+  .era-tag{
+    display:inline-flex; align-items:center; gap:6px;
+    font-family:var(--font-mono); font-size:11px; letter-spacing:0.03em;
+    padding:4px 9px; margin-bottom:12px;
+    color:#fff;
+  }
+  .era-tag .dot{ width:6px; height:6px; border-radius:50%; background:#fff; }
+
+  .card-top h2{
+    font-family:var(--font-display); font-weight:600; font-size:24px;
+    margin:0 0 6px 0; line-height:1.2; padding-right:36px;
+  }
+  .card-top .location-line{
+    font-family:var(--font-mono); font-size:11px; color:var(--ink-soft);
+    letter-spacing:0.02em;
+  }
+
+  .gallery{
+    display:flex; gap:2px; overflow-x:auto; scroll-snap-type:x mandatory;
+    -webkit-overflow-scrolling:touch;
+    border-bottom:1px solid var(--hairline);
+  }
+  .gallery img, .gallery video{
+    height:190px; width:auto; flex:none; scroll-snap-align:start;
+    object-fit:cover; display:block; background:#000;
+  }
+  .gallery-empty{
+    height:150px; width:100%;
+    display:flex; align-items:center; justify-content:center;
+    font-family:var(--font-mono); font-size:11px; color:var(--stone);
+    border-bottom:1px solid var(--hairline);
+    background:
+      repeating-linear-gradient(135deg, var(--parchment-dim), var(--parchment-dim) 8px, var(--parchment) 8px, var(--parchment) 16px);
+  }
+
+  .card-body{ padding:18px 22px 26px 22px; }
+  .card-body p.description{
+    font-size:14px; line-height:1.65; color:var(--ink); margin:0 0 18px 0;
+  }
+
+  .meta-row{
+    display:flex; justify-content:space-between;
+    font-family:var(--font-mono); font-size:11px;
+    color:var(--ink-soft); padding:9px 0; border-top:1px solid var(--hairline);
+  }
+  .meta-row:last-of-type{ border-bottom:1px solid var(--hairline); }
+
+  .meta-block{
+    font-family:var(--font-mono);
+    color:var(--ink-soft); padding:9px 0; border-top:1px solid var(--hairline);
+  }
+  .meta-block-label{
+    display:block; font-size:11px; letter-spacing:0.02em; margin-bottom:4px;
+  }
+  .meta-block-line1{
+    display:block; font-size:13px; color:var(--ink); line-height:1.35;
+  }
+  .meta-block-line2{
+    display:block; font-size:11px; color:var(--ink-soft); line-height:1.35; margin-top:1px;
+  }
+
+  .coords-line{
+    display:flex; align-items:center; gap:6px;
+  }
+  .pin-link{
+    display:inline-flex; align-items:center; justify-content:center;
+    width:27px; height:27px; flex:none;
+    color:var(--terracotta);
+    text-decoration:none;
+  }
+  .pin-link svg{ width:20px; height:20px; display:block; }
+  .pin-link:hover{ color:var(--rust); }
+
+  .visit-link{
+    display:inline-flex; align-items:center; gap:8px;
+    margin-top:18px;
+    font-family:var(--font-mono); font-size:12.5px; letter-spacing:0.02em;
+    color:var(--parchment); background:var(--terracotta);
+    padding:11px 16px; text-decoration:none;
+  }
+  .visit-link:hover{ background:var(--rust); }
+
+  /* ---------- custom marker ---------- */
+  .strata-pin{ display:flex; align-items:center; justify-content:center; }
+  .strata-pin svg{ display:block; filter: drop-shadow(0 2px 3px rgba(43,36,28,0.35)); }
+
+  /* ---------- empty state ---------- */
+  .empty-state{
+    position:fixed; left:50%; top:50%; transform:translate(-50%,-50%);
+    z-index:5; text-align:center; max-width:380px;
+    background:rgba(237,228,210,0.92);
+    border:1px solid var(--hairline);
+    padding:26px 30px; pointer-events:none;
+  }
+  .empty-state h3{
+    font-family:var(--font-display); font-size:19px; margin:0 0 8px 0;
+  }
+  .empty-state p{
+    font-family:var(--font-mono); font-size:11.5px; line-height:1.7;
+    color:var(--ink-soft); margin:0;
+  }
+
+  /* ---------- responsive ---------- */
+  @media (max-width: 720px){
+    .topbar{ padding:16px; flex-wrap:wrap; gap:10px; justify-content:center; }
+    .brand{ max-width:min(340px, calc(100vw - 32px)); }
+    .scroll-content{ padding:12px 15px; }
+    .brand h1{ font-size:22px; }
+    .brand p{ font-size:13px; }
+    #brandIntro{ white-space:nowrap; }
+    .lang-select{ font-size:12px; padding:7px 22px 7px 8px; background-position: calc(100% - 11px) 55%, calc(100% - 7px) 55%; }
+    .leaf-badge{ width:130px; height:114px; bottom:78px; }
+    .leaf-shape{ width:100px; }
+    .leaf-content{ width:92px; }
+    .leaf-title{ font-size:13px; }
+    .leaf-label{ font-size:9.5px; }
+    .leaf-status{ font-size:8px; padding:1px 6px; }
+    .filters{ left:14px; right:14px; bottom:14px; max-width:calc(100% - 28px); }
+    .chip{ font-size:10.5px; padding:7px 10px; }
+
+    .site-card{
+      width:100%; height:72%; top:auto; bottom:0; left:0; right:0;
+      border-left:none; border-top:1px solid var(--hairline);
+      transform:translateY(100%);
+    }
+    .site-card.open{ transform:translateY(0); }
+    .empty-state{ max-width:260px; padding:18px 20px; }
+  }
+
+  /* honor reduced-motion: skips transition/animation work entirely rather than just shortening it */
+  @media (prefers-reduced-motion: reduce){
+    .chip, .site-card, .lang-select{ transition:none !important; }
+  }
+</style>
+</head>
+<body>
+
+<div id="map"></div>
+
+<div class="topbar">
+  <div class="brand">
+    <div class="scroll-rod scroll-rod-top"><span class="knob"></span><span class="knob"></span></div>
+    <div class="scroll-content">
+      <h1>AnaTrail</h1>
+      <p id="brandIntro">Ancient Anatolia Through Time.</p>
+      <p id="brandInstruction">Please select your language to proceed.</p>
+      <select class="lang-select" id="langSelect" aria-label="Language"></select>
+    </div>
+    <div class="scroll-rod scroll-rod-bottom"><span class="knob"></span><span class="knob"></span></div>
+  </div>
+</div>
+
+<div class="leaf-badge">
+  <div id="pineWrap"></div>
+  <div class="leaf-content">
+    <span class="leaf-title">Ecograder</span>
+    <span class="leaf-label">Website score</span>
+    <span class="leaf-status">Coming soon</span>
+  </div>
+</div>
+
+<div class="filters" id="filters"></div>
+
+<div class="empty-state" id="emptyState">
+  <h3 id="emptyTitle">Loading sites…</h3>
+  <p id="emptyText"></p>
+</div>
+
+<aside class="site-card" id="siteCard">
+  <button class="card-close" id="cardClose">&times;</button>
+  <div class="card-scroll">
+    <div id="galleryWrap"></div>
+    <div class="card-top" style="border-top:none;">
+      <p class="catalog-no" id="catalogNo">SITE No. 000</p>
+      <div id="eraTagWrap"></div>
+      <h2 id="siteName">—</h2>
+      <div class="coords-line">
+        <p class="location-line" id="siteCoords" style="margin:0;">—</p>
+        <a href="#" target="_blank" rel="noopener" class="pin-link" id="mapsPinLink" aria-label="Navigate there in Google Maps" title="Navigate there in Google Maps">
+          <svg viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+            <path d="M12 2C7.6 2 4 5.6 4 10c0 6 8 12 8 12s8-6 8-12c0-4.4-3.6-8-8-8zm0 11a3 3 0 1 1 0-6 3 3 0 0 1 0 6z"/>
+          </svg>
+        </a>
+      </div>
+    </div>
+    <div class="card-body">
+      <p class="description" id="siteDescription">—</p>
+      <div class="meta-block">
+        <span class="meta-block-label" id="periodLabel">PERIOD</span>
+        <span class="meta-block-line1" id="metaPeriodName">—</span>
+        <span class="meta-block-line2" id="metaPeriodDates">—</span>
+      </div>
+      <div class="meta-row"><span id="regionLabel">REGION</span><span id="metaRegion">—</span></div>
+      <a href="#" target="_blank" rel="noopener" class="visit-link" id="visitLink"><span id="visitLinkLabel">Visit official site</span>&nbsp;→</a>
+    </div>
+  </div>
+</aside>
+
+<script>
+/* =========================================================================
+   SITE DATA
+   -------------------------------------------------------------------------
+   With 200+ sites planned, data lives outside this file for scale — see
+   data/sites.json (schema + media convention documented in
+   SCALABILITY-GUIDE.md, shipped alongside this file). This file just
+   fetches it below and renders whatever it finds.
+   NOTE: fetch() requires this page to be served over http(s) — opening the
+   file directly (file://) will fail in most browsers. Run a local server
+   (see SCALABILITY-GUIDE.md / the GitHub Pages guide) or host it online.
+   ========================================================================= */
+
+let sites = [];
+
+const ERAS = {
+  neolithic: { color: "#7C8363", label: {
+    en:"Neolithic", tr:"Neolitik", fr:"Néolithique", it:"Neolitico", de:"Neolithikum", es:"Neolítico", ru:"Неолит", zh:"新石器时代" } },
+  bronze: { color: "#B5533C", label: {
+    en:"Bronze Age / Hittite", tr:"Tunç Çağı / Hitit", fr:"Âge du bronze / hittite", it:"Età del bronzo / ittita",
+    de:"Bronzezeit / hethitisch", es:"Edad del Bronce / hitita", ru:"Бронзовый век / хеттский", zh:"青铜时代／赫梯" } },
+  classical: { color: "#C08A28", label: {
+    en:"Greek & Roman", tr:"Yunan ve Roma", fr:"Grec et romain", it:"Greco e romano", de:"Griechisch und Römisch",
+    es:"Griego y romano", ru:"Греко-римский", zh:"希腊罗马时期" } },
+  byzantine: { color: "#3E6259", label: {
+    en:"Byzantine", tr:"Bizans", fr:"Byzantin", it:"Bizantino", de:"Byzantinisch", es:"Bizantino", ru:"Византийский", zh:"拜占庭时期" } },
+  ottoman: { color: "#8B4A2B", label: {
+    en:"Ottoman", tr:"Osmanlı", fr:"Ottoman", it:"Ottomano", de:"Osmanisch", es:"Otomano", ru:"Османский", zh:"奥斯曼时期" } }
+};
+const FALLBACK_COLOR = "#A69A87";
+
+// ---- languages ----
+const LANGS = {
+  en: { name: "English" },
+  tr: { name: "Türkçe" },
+  fr: { name: "Français" },
+  it: { name: "Italiano" },
+  de: { name: "Deutsch" },
+  es: { name: "Español" },
+  ru: { name: "Русский" },
+  zh: { name: "中文" }
+};
+
+const TRANSLATIONS = {
+  en: { brandIntro: "Explore the Trails of Ancient Anatolia.", brandInstruction: "Please select your language.", emptyTitle: "No sites catalogued yet",
+    emptyText: "Add entries to <code>data/sites.json</code> to begin the catalog — see SCALABILITY-GUIDE.md for the schema.",
+    catalogPrefix: "SITE No.", period: "PERIOD", region: "REGION", visitSite: "Visit official site", noPhotos: "No photos added yet",
+    loadingText: "Loading sites…", loadErrorTitle: "Couldn't load site data",
+    loadErrorText: "If you're opening this file directly from disk, that won't work — serve it through a local or hosted web server instead (see SCALABILITY-GUIDE.md)." },
+  tr: { brandIntro: "Antik Anadolu'nun İzlerini Keşfedin.", brandInstruction: "Lütfen dilinizi seçin.", emptyTitle: "Henüz kataloglanmış alan yok",
+    emptyText: "Kataloğu oluşturmaya başlamak için <code>data/sites.json</code> dosyasına kayıt ekleyin — şema için SCALABILITY-GUIDE.md dosyasına bakın.",
+    catalogPrefix: "ALAN No.", period: "DÖNEM", region: "BÖLGE", visitSite: "Resmî siteyi ziyaret et", noPhotos: "Henüz fotoğraf eklenmedi",
+    loadingText: "Alanlar yükleniyor…", loadErrorTitle: "Alan verisi yüklenemedi",
+    loadErrorText: "Bu dosyayı doğrudan diskten açıyorsanız çalışmaz — bunun yerine yerel veya barındırılan bir web sunucusu üzerinden sunun (bkz. SCALABILITY-GUIDE.md)." },
+  fr: { brandIntro: "Explorez les Sentiers de l'Anatolie Antique.", brandInstruction: "Veuillez choisir votre langue.", emptyTitle: "Aucun site catalogué pour l'instant",
+    emptyText: "Ajoutez des entrées à <code>data/sites.json</code> pour commencer le catalogue — voir le schéma dans SCALABILITY-GUIDE.md.",
+    catalogPrefix: "SITE N°", period: "PÉRIODE", region: "RÉGION", visitSite: "Voir le site officiel", noPhotos: "Aucune photo ajoutée",
+    loadingText: "Chargement des sites…", loadErrorTitle: "Impossible de charger les données",
+    loadErrorText: "Si vous ouvrez ce fichier directement depuis le disque, cela ne fonctionnera pas — servez-le via un serveur web local ou hébergé (voir SCALABILITY-GUIDE.md)." },
+  it: { brandIntro: "Esplora i Sentieri dell'Antica Anatolia.", brandInstruction: "Seleziona la tua lingua.", emptyTitle: "Nessun sito ancora catalogato",
+    emptyText: "Aggiungi voci a <code>data/sites.json</code> per iniziare il catalogo — vedi lo schema in SCALABILITY-GUIDE.md.",
+    catalogPrefix: "SITO N.", period: "PERIODO", region: "REGIONE", visitSite: "Visita il sito ufficiale", noPhotos: "Nessuna foto aggiunta",
+    loadingText: "Caricamento dei siti…", loadErrorTitle: "Impossibile caricare i dati",
+    loadErrorText: "Se stai aprendo questo file direttamente dal disco, non funzionerà — servilo tramite un server web locale o online (vedi SCALABILITY-GUIDE.md)." },
+  de: { brandIntro: "Entdecken Sie die Pfade des Antiken Anatolien.", brandInstruction: "Bitte wählen Sie Ihre Sprache.", emptyTitle: "Noch keine Stätten katalogisiert",
+    emptyText: "Fügen Sie Einträge zu <code>data/sites.json</code> hinzu, um den Katalog zu beginnen — Schema siehe SCALABILITY-GUIDE.md.",
+    catalogPrefix: "STÄTTE Nr.", period: "ZEITRAUM", region: "REGION", visitSite: "Offizielle Website besuchen", noPhotos: "Noch keine Fotos hinzugefügt",
+    loadingText: "Stätten werden geladen…", loadErrorTitle: "Stättendaten konnten nicht geladen werden",
+    loadErrorText: "Wenn Sie diese Datei direkt von der Festplatte öffnen, funktioniert das nicht — stellen Sie sie stattdessen über einen lokalen oder gehosteten Webserver bereit (siehe SCALABILITY-GUIDE.md)." },
+  es: { brandIntro: "Explora los Senderos de la Antigua Anatolia.", brandInstruction: "Selecciona tu idioma.", emptyTitle: "Aún no hay yacimientos catalogados",
+    emptyText: "Añade entradas a <code>data/sites.json</code> para comenzar el catálogo — consulta el esquema en SCALABILITY-GUIDE.md.",
+    catalogPrefix: "SITIO N.º", period: "PERÍODO", region: "REGIÓN", visitSite: "Visitar sitio oficial", noPhotos: "Aún no hay fotos añadidas",
+    loadingText: "Cargando sitios…", loadErrorTitle: "No se pudieron cargar los datos",
+    loadErrorText: "Si estás abriendo este archivo directamente desde el disco, no funcionará — sírvelo mediante un servidor web local o alojado (consulta SCALABILITY-GUIDE.md)." },
+  ru: { brandIntro: "Исследуйте Тропы Древней Анатолии.", brandInstruction: "Пожалуйста, выберите язык.", emptyTitle: "Пока нет памятников в каталоге",
+    emptyText: "Добавьте записи в <code>data/sites.json</code>, чтобы начать каталог — схема в SCALABILITY-GUIDE.md.",
+    catalogPrefix: "ОБЪЕКТ №", period: "ПЕРИОД", region: "РЕГИОН", visitSite: "Перейти на официальный сайт", noPhotos: "Фотографии ещё не добавлены",
+    loadingText: "Загрузка объектов…", loadErrorTitle: "Не удалось загрузить данные",
+    loadErrorText: "Если вы открываете этот файл напрямую с диска, это не сработает — используйте локальный или размещённый веб-сервер (см. SCALABILITY-GUIDE.md)." },
+  zh: { brandIntro: "探索古安纳托利亚的足迹。", brandInstruction: "请选择您的语言。", emptyTitle: "尚未收录任何遗址",
+    emptyText: "请在 <code>data/sites.json</code> 中添加条目以开始编目——架构说明见 SCALABILITY-GUIDE.md。",
+    catalogPrefix: "遗址编号", period: "时期", region: "地区", visitSite: "访问官方网站", noPhotos: "暂无照片",
+    loadingText: "正在加载遗址…", loadErrorTitle: "无法加载遗址数据",
+    loadErrorText: "如果您是直接从磁盘打开此文件，将无法正常工作——请改用本地或托管的网络服务器提供访问（参见 SCALABILITY-GUIDE.md）。" }
+};
+
+let currentLang = "en";
+function t(key){ return (TRANSLATIONS[currentLang] && TRANSLATIONS[currentLang][key]) || TRANSLATIONS.en[key]; }
+function field(value){
+  if (value && typeof value === 'object') return value[currentLang] || value.en || Object.values(value)[0];
+  return value;
+}
+
+// ---- demand shaping: adapt behavior to the visitor's real network conditions ----
+// (navigator.connection isn't supported in every browser — this degrades safely when absent)
+const conn = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+const REDUCED_DATA = !!(conn && (conn.saveData || /2g/.test(conn.effectiveType || '')));
+
+// ---- map init, framed to Turkey + Cyprus only ----
+// (widen this box later if you want to add other countries in a future edition)
+const VIEW_BOUNDS = L.latLngBounds([34.2, 25.3], [42.3, 45.0]);
+
+const map = L.map('map', {
+  zoomControl: false,
+  attributionControl: true,
+  maxBounds: VIEW_BOUNDS.pad(0.08),   // can't pan out to the rest of the world
+  maxBoundsViscosity: 1.0             // bounds feel solid, not elastic
+});
+map.fitBounds(VIEW_BOUNDS, { padding: [20, 20] });
+map.setMinZoom(map.getZoom());        // can't zoom out past the Turkey+Cyprus frame
+
+// keep the region as the resting view if the window is resized
+// debounced so a window drag does one recalculation, not dozens
+let resizeTimer = null;
+window.addEventListener('resize', () => {
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(() => {
+    if (!card.classList.contains('open')) map.fitBounds(VIEW_BOUNDS, { padding: [20, 20] });
+  }, 200);
+});
+
+L.control.zoom({ position: 'bottomright' }).addTo(map);
+
+L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+  attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
+  maxZoom: 19
+}).addTo(map);
+
+// ---- clustering: pins group together when zoomed out, and split apart as the user zooms in ----
+const clusterGroup = L.markerClusterGroup({
+  maxClusterRadius: 55,
+  spiderfyOnMaxZoom: true,
+  showCoverageOnHover: false,
+  animate: !REDUCED_DATA,
+  iconCreateFunction: function(cluster){
+    const count = cluster.getChildCount();
+    return L.divIcon({
+      html: `<div class="strata-cluster"><div>${count}</div></div>`,
+      className: '',
+      iconSize: [38, 38]
+    });
+  }
+});
+map.addLayer(clusterGroup);
+
+function pinIcon(color, number){
+  const svg = `
+    <svg width="30" height="38" viewBox="0 0 30 38" xmlns="http://www.w3.org/2000/svg">
+      <path d="M15 0C6.7 0 0 6.7 0 15c0 10.5 15 23 15 23s15-12.5 15-23C30 6.7 23.3 0 15 0z" fill="${color}"/>
+      <circle cx="15" cy="15" r="10" fill="#EDE4D2"/>
+      <text x="15" y="19.5" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="10" fill="${color}" font-weight="600">${number}</text>
+    </svg>`;
+  return L.divIcon({
+    html: `<div class="strata-pin">${svg}</div>`,
+    className: '',
+    iconSize: [30, 38],
+    iconAnchor: [15, 38],
+    popupAnchor: [0, -34]
+  });
+}
+
+const markers = []; // { layer, era }
+
+function pad3(n){ return String(n).padStart(3, '0'); }
+
+function buildMarkers(){
+  sites.forEach((site, i) => {
+    const color = (ERAS[site.era] && ERAS[site.era].color) || FALLBACK_COLOR;
+    const marker = L.marker([site.lat, site.lng], { icon: pinIcon(color, i + 1) });
+    marker.bindTooltip(field(site.name), { direction: 'top', offset: [0, -30] });
+    marker.on('click', () => openCard(site, i));
+    clusterGroup.addLayer(marker);
+    markers.push({ layer: marker, era: site.era, site, index: i });
+  });
+}
+
+// ---- filter chips ----
+const filtersEl = document.getElementById('filters');
+const activeEras = new Set(Object.keys(ERAS));
+
+function renderChips(){
+  filtersEl.innerHTML = '';
+  const presentEras = new Set(sites.map(s => s.era)); // recomputed each render — cheap even at 200+ sites
+  Object.keys(ERAS).forEach(key => {
+    if (!presentEras.has(key)) return; // only show chips for eras actually in use
+    const era = ERAS[key];
+    const chip = document.createElement('div');
+    chip.className = 'chip' + (activeEras.has(key) ? '' : ' off');
+    chip.innerHTML = `<span class="dot" style="background:${era.color}"></span>${era.label[currentLang] || era.label.en}`;
+    chip.addEventListener('click', () => {
+      if (activeEras.has(key)) { activeEras.delete(key); chip.classList.add('off'); }
+      else { activeEras.add(key); chip.classList.remove('off'); }
+      applyFilters();
+    });
+    filtersEl.appendChild(chip);
+  });
+}
+
+function applyFilters(){
+  markers.forEach(m => {
+    const shouldShow = activeEras.has(m.era);
+    const isShown = clusterGroup.hasLayer(m.layer);
+    if (shouldShow && !isShown) clusterGroup.addLayer(m.layer);
+    if (!shouldShow && isShown) clusterGroup.removeLayer(m.layer);
+  });
+}
+
+// ---- info card ----
+const card = document.getElementById('siteCard');
+document.getElementById('cardClose').addEventListener('click', closeCard);
+let openIndex = null;
+
+function openCard(site, index){
+  openIndex = index;
+  document.getElementById('catalogNo').textContent = `${t('catalogPrefix')} ${pad3(index + 1)}`;
+  document.getElementById('siteName').textContent = field(site.name);
+  document.getElementById('siteCoords').textContent = `${site.lat.toFixed(4)}° N, ${site.lng.toFixed(4)}° E`;
+  document.getElementById('mapsPinLink').href = `https://www.google.com/maps/dir/?api=1&destination=${site.lat},${site.lng}&travelmode=driving`;
+  document.getElementById('siteDescription').textContent = field(site.description) || '';
+  document.getElementById('metaPeriodName').textContent = field(site.period && site.period.name) || '—';
+  document.getElementById('metaPeriodDates').textContent = field(site.period && site.period.dates) || '';
+  document.getElementById('metaRegion').textContent = field(site.region) || '—';
+
+  const visitLink = document.getElementById('visitLink');
+  if (site.website) { visitLink.href = site.website; visitLink.style.display = 'inline-flex'; }
+  else { visitLink.style.display = 'none'; }
+
+  const eraInfo = ERAS[site.era];
+  const eraWrap = document.getElementById('eraTagWrap');
+  eraWrap.innerHTML = eraInfo
+    ? `<span class="era-tag" style="background:${eraInfo.color}"><span class="dot"></span>${eraInfo.label[currentLang] || eraInfo.label.en}</span>`
+    : '';
+
+  const galleryWrap = document.getElementById('galleryWrap');
+  const items = mediaItems(site);
+  if (items.length){
+    // on slow/data-saver connections, show only the first item instead of the full set
+    const itemsToShow = REDUCED_DATA ? items.slice(0, 1) : items;
+    galleryWrap.innerHTML = `<div class="gallery">${
+      itemsToShow.map(item => item.type === 'video'
+        ? `<video src="${item.src}" controls muted playsinline preload="metadata" onerror="this.remove()"></video>`
+        : `<img src="${item.src}" alt="${field(site.name)}" loading="lazy" decoding="async" onerror="this.remove()">`
+      ).join('')
+    }</div>`;
+  } else {
+    galleryWrap.innerHTML = `<div class="gallery-empty">${t('noPhotos')}</div>`;
+  }
+
+  card.classList.add('open');
+  map.panTo([site.lat, site.lng], { animate: !REDUCED_DATA });
+}
+
+// Every site is meant to carry 3 photos + 1 video. Rather than writing four
+// URLs into every one of 200+ JSON entries, files just need to live at
+// media/<slug>/1.jpg, 2.jpg, 3.jpg, video.mp4 — this builds those paths.
+// (demoMedia is only here so the two example sites work before you've
+// created a media/ folder of your own — real entries should omit it.)
+function mediaItems(site){
+  if (site.demoMedia){
+    const items = (site.demoMedia.images || []).map(src => ({ type: 'image', src }));
+    if (site.demoMedia.video) items.push({ type: 'video', src: site.demoMedia.video });
+    return items;
+  }
+  return [
+    { type: 'image', src: `media/${site.slug}/1.jpg` },
+    { type: 'image', src: `media/${site.slug}/2.jpg` },
+    { type: 'image', src: `media/${site.slug}/3.jpg` },
+    { type: 'video', src: `media/${site.slug}/video.mp4` }
+  ];
+}
+
+function closeCard(){ card.classList.remove('open'); openIndex = null; }
+
+// ---- language switcher ----
+const langSelect = document.getElementById('langSelect');
+Object.keys(LANGS).forEach(code => {
+  const opt = document.createElement('option');
+  opt.value = code;
+  opt.textContent = LANGS[code].name;
+  langSelect.appendChild(opt);
+});
+langSelect.value = currentLang;
+langSelect.addEventListener('change', () => {
+  currentLang = langSelect.value;
+  renderUI();
+});
+
+let loadState = 'loading'; // 'loading' | 'error' | 'ready'
+
+function renderUI(){
+  document.documentElement.lang = currentLang;
+  document.getElementById('brandIntro').textContent = t('brandIntro');
+  document.getElementById('brandInstruction').textContent = t('brandInstruction');
+  document.getElementById('periodLabel').textContent = t('period');
+  document.getElementById('regionLabel').textContent = t('region');
+  document.getElementById('visitLinkLabel').textContent = t('visitSite');
+
+  const emptyTitleEl = document.getElementById('emptyTitle');
+  const emptyTextEl = document.getElementById('emptyText');
+  if (loadState === 'loading'){
+    emptyTitleEl.textContent = t('loadingText');
+    emptyTextEl.innerHTML = '';
+  } else if (loadState === 'error'){
+    emptyTitleEl.textContent = t('loadErrorTitle');
+    emptyTextEl.innerHTML = t('loadErrorText');
+  } else {
+    emptyTitleEl.textContent = t('emptyTitle');
+    emptyTextEl.innerHTML = t('emptyText');
+  }
+  document.getElementById('emptyState').style.display = (loadState !== 'ready' || sites.length === 0) ? 'block' : 'none';
+
+  markers.forEach(m => m.layer.setTooltipContent(field(m.site.name)));
+  renderChips();
+
+  if (openIndex !== null) openCard(sites[openIndex], openIndex);
+}
+
+// ---- load site data (fetch fails on file:// — must be served over http/https) ----
+async function init(){
+  try {
+    const res = await fetch('data/sites.json');
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    sites = await res.json();
+    buildMarkers();
+    loadState = 'ready';
+  } catch (err) {
+    console.error('AnaTrail: failed to load data/sites.json —', err);
+    loadState = 'error';
+  }
+  renderUI();
+}
+
+// ---- eco badge decoration: a hand-drawn-feeling pine sprig, built from actual
+// needle strokes (not a flat leaf silhouette) for a more natural look ----
+function pineSprigSVG(){
+  const stem = 'M70 160 C 66 130, 74 100, 68 70 C 65 50, 71 30, 68 12';
+  const tufts = [
+    { x: 69, y: 146, s: 1.05 },
+    { x: 67, y: 120, s: 0.95 },
+    { x: 70, y: 94,  s: 0.88 },
+    { x: 66, y: 68,  s: 0.78 },
+    { x: 69, y: 44,  s: 0.65 },
+    { x: 67, y: 22,  s: 0.5  }
+  ];
+  // needle directions per tuft, fanned left/right and slightly upward — a real
+  // conifer sprig has needles at all these rough angles, not a uniform ring
+  const dirs = [
+    [-27,-9], [-25,5], [-19,17], [-11,25],
+    [ 27,-9], [ 25,5], [ 19,17], [ 11,25]
+  ];
+  const colors = ['#3F6B2A', '#4F7A34', '#5C8B3E'];
+  let needles = '';
+  tufts.forEach((t, ti) => {
+    dirs.forEach((d, di) => {
+      const x2 = (t.x + d[0] * t.s).toFixed(1);
+      const y2 = (t.y + d[1] * t.s).toFixed(1);
+      const color = colors[(ti + di) % colors.length];
+      const w = (2.6 * t.s).toFixed(2);
+      needles += `<line x1="${t.x}" y1="${t.y}" x2="${x2}" y2="${y2}" stroke="${color}" stroke-width="${w}" stroke-linecap="round"/>`;
+    });
+  });
+  return `<svg class="leaf-shape" viewBox="0 0 140 170" xmlns="http://www.w3.org/2000/svg">
+    <path d="${stem}" fill="none" stroke="#6E4A2C" stroke-width="4.5" stroke-linecap="round"/>
+    ${needles}
+  </svg>`;
+}
+document.getElementById('pineWrap').innerHTML = pineSprigSVG();
+
+init();
+</script>
+</body>
+</html>
